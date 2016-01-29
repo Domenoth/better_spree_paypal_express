@@ -13,3 +13,5 @@ rspec.failures
 .idea
 .ruby-version
 .ruby-gemset
+*.swp
+*.swo

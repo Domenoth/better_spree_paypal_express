@@ -1,8 +1,8 @@
-module SpreePaypalExpress
+module SolidusPaypalExpress
   class Engine < Rails::Engine
     require 'spree/core'
     isolate_namespace Spree
-    engine_name 'spree_paypal_express'
+    engine_name 'solidus_paypal_express'
 
     config.autoload_paths += %W(#{config.root}/lib)
 

@@ -26,7 +26,9 @@ module Spree
         }
       end
 
-      pp_request = provider.build_set_express_checkout(express_checkout_request_details(order, items))
+      pp_request = provider.build_set_express_checkout(
+        express_checkout_request_details(order, items)
+      )
 
       begin
         pp_response = provider.set_express_checkout(pp_request)
@@ -144,7 +146,7 @@ module Spree
             value: current_order.additional_tax_total
           },
           ShipToAddress: address_options,
-          PaymentDetailsItem: items,
+          PaymentDetailsItem: reject_zeroed_items(items),
           ShippingMethod: "Shipping Method Name Goes Here",
           PaymentAction: "Sale"
         }
@@ -172,6 +174,12 @@ module Spree
 
     def address_required?
       payment_method.preferred_solution.eql?('Sole')
+    end
+
+    def reject_zeroed_items(items)
+      items.reject do |hash|
+        hash[:Amount][:value] == 0
+      end
     end
   end
 end

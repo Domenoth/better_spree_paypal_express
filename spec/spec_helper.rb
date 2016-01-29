@@ -17,6 +17,7 @@ ENV['RAILS_ENV'] = 'test'
 require File.expand_path('../dummy/config/environment.rb',  __FILE__)
 
 require 'rspec/rails'
+require 'rspec-activemodel-mocks'
 require 'database_cleaner'
 require 'ffaker'
 require 'pry'
@@ -34,7 +35,7 @@ require 'sass'
 require 'capybara/poltergeist'
 
 Capybara.javascript_driver = :poltergeist
-Capybara.default_wait_time = 15
+Capybara.default_max_wait_time = 10
 
 Dir[File.join(File.dirname(__FILE__), 'support/**/*.rb')].each { |f| require f }
 
@@ -43,12 +44,14 @@ require 'spree/testing_support/controller_requests'
 require 'spree/testing_support/authorization_helpers'
 require 'spree/testing_support/url_helpers'
 
-require 'spree_paypal_express/factories'
+require 'solidus_paypal_express/factories'
 
 RSpec.configure do |config|
   config.include FactoryGirl::Syntax::Methods
+  config.include Spree::TestingSupport::ControllerRequests, type: :controller
   config.include Spree::TestingSupport::UrlHelpers
   config.include Spree::TestingSupport::AuthorizationHelpers::Controller
+  config.include Capybara::DSL
 
   config.mock_with :rspec
   config.color = true
@@ -59,8 +62,8 @@ RSpec.configure do |config|
     DatabaseCleaner.clean_with :truncation
   end
 
-  config.before do
-    DatabaseCleaner.strategy = example.metadata[:js] ? :truncation : :transaction
+  config.before do |ex|
+    DatabaseCleaner.strategy = ex.metadata[:js] ? :truncation : :transaction
     DatabaseCleaner.start
   end
 
@@ -69,6 +72,7 @@ RSpec.configure do |config|
   end
 
   config.fail_fast = ENV['FAIL_FAST'] || false
+  config.order = :random
 end
 
 if ENV["COVERAGE"]

@@ -1,4 +1,4 @@
-describe "PayPal", js: true do
+feature "PayPal", js: true do
   let!(:product) { FactoryGirl.create(:product, name: 'iPad') }
 
   before do
@@ -25,19 +25,36 @@ describe "PayPal", js: true do
   end
 
   def switch_to_paypal_login
-    # If you go through a payment once in the sandbox, it remembers your preferred setting.
-    # It defaults to the *wrong* setting for the first time, so we need to have this method.
-    unless page.has_selector?("#login #email")
-      find("#loadLogin").click
+    within_frame('injectedUl') do
+      # If you go through a payment once in the sandbox, it remembers your preferred setting.
+      # It defaults to the *wrong* setting for the first time, so we need to have this method.
+      if find("#login #email").nil?
+        find("#loadLogin").click
+      end
     end
   end
 
   def login_to_paypal
-    within("#loginForm") do
-      fill_in "Email", with: "pp@spreecommerce.com"
-      fill_in "Password", with: "thequickbrownfox"
-      click_button "Log in to PayPal"
+    text_check = "Email Password Stay logged in for faster checkout"
+    within_frame('injectedUl') do
+      expect(page).to have_content(text_check)
+      form = all("#loginForm, #login form", 1).first
+      within(form) do
+        fill_in "Email", with: "pp@spreecommerce.com"
+        fill_in "Password", with: "thequickbrownfox"
+        click_button "Log In"
+        unless has_no_text?(text_check, wait: 20)
+          puts "Bueller...Bueller...Bueller?\n\n"
+          click_button "Log In"
+          assert_no_text(text_check, wait: 20)
+        end
+      end
     end
+  end
+
+  def approve_payment
+    click_button("Pay Now")
+    click_button("Place Order")
   end
 
   def within_transaction_cart(&block)
@@ -58,7 +75,7 @@ describe "PayPal", js: true do
     end
   end
 
-  xit "pays for an order successfully" do
+  it "pays for an order successfully" do
     add_to_cart(product)
     click_button 'Checkout'
     fill_in_guest
@@ -69,10 +86,10 @@ describe "PayPal", js: true do
     find("#paypal_button").click
     switch_to_paypal_login
     login_to_paypal
-    click_button "Pay Now"
-    page.should have_content("Your order has been processed successfully")
+    approve_payment
+    expect(page).to have_content("Your order has been processed successfully")
 
-    Spree::Payment.last.source.transaction_id.should_not be_blank
+    expect(Spree::Payment.last.source.transaction_id).not_to be_blank
   end
 
   context "with 'Sole' solution type" do
@@ -80,7 +97,7 @@ describe "PayPal", js: true do
       @gateway.preferred_solution = 'Sole'
     end
 
-    xit "passes user details to PayPal" do
+    it "passes user details to PayPal" do
       add_to_cart(product)
       click_button 'Checkout'
       within("#guest_checkout") do
@@ -94,26 +111,26 @@ describe "PayPal", js: true do
       find("#paypal_button").click
 
       login_to_paypal
-      click_button "Pay Now"
+      approve_payment
 
-      page.should have_selector '[data-hook=order-bill-address] .fn', text: 'Test User'
-      page.should have_selector '[data-hook=order-bill-address] .adr', text: '1 User Lane'
-      page.should have_selector '[data-hook=order-bill-address] .adr', text: 'Adamsville AL 35005'
-      page.should have_selector '[data-hook=order-bill-address] .adr', text: 'United States'
-      page.should have_selector '[data-hook=order-bill-address] .tel', text: '555-123-4567'
+      expect(page).to have_selector '[data-hook=order-bill-address] .fn', text: 'Test User'
+      expect(page).to have_selector '[data-hook=order-bill-address] .adr', text: '1 User Lane'
+      expect(page).to have_selector '[data-hook=order-bill-address] .adr', text: 'Adamsville AL 35005'
+      expect(page).to have_selector '[data-hook=order-bill-address] .adr', text: 'United States'
+      expect(page).to have_selector '[data-hook=order-bill-address] .tel', text: '555-123-4567'
     end
   end
 
-  xit "includes adjustments in PayPal summary" do
+  it "includes adjustments in PayPal summary" do
     add_to_cart(product)
     # TODO: Is there a better way to find this current order?
     order = Spree::Order.last
-    order.adjustments.create!(amount: -5, label: "$5 off")
-    order.adjustments.create!(amount: 10, label: "$10 on")
+    order.all_adjustments.create!(adjustable: order, amount: -5, label: "$5 off")
+    order.all_adjustments.create!(adjustable: order, amount: 10, label: "$10 on")
     visit '/cart'
     within("#cart_adjustments") do
-      page.should have_content("$5 off")
-      page.should have_content("$10 on")
+      expect(page).to have_content("$5 off")
+      expect(page).to have_content("$10 on")
     end
     click_button 'Checkout'
     fill_in_guest
@@ -124,42 +141,39 @@ describe "PayPal", js: true do
     find("#paypal_button").click
 
     within_transaction_cart do
-      page.should have_content("$5 off")
-      page.should have_content("$10 on")
+      expect(page).to have_content("$5 off")
+      expect(page).to have_content("$10 on")
     end
 
     login_to_paypal
 
     within_transaction_cart do
-      page.should have_content("$5 off")
-      page.should have_content("$10 on")
+      expect(page).to have_content("$5 off")
+      expect(page).to have_content("$10 on")
     end
 
-    click_button "Pay Now"
+    approve_payment
 
     within("[data-hook=order_details_adjustments]") do
-      page.should have_content("$5 off")
-      page.should have_content("$10 on")
+      expect(page).to have_content("$5 off")
+      expect(page).to have_content("$10 on")
     end
   end
 
   context "line item adjustments" do
-    let(:promotion) { Spree::Promotion.create(name: "10% off") }
+    let(:promotion) { Spree::Promotion.create!(name: "10% off", apply_automatically: true) }
     before do
       calculator = Spree::Calculator::FlatPercentItemTotal.new(preferred_flat_percent: 10)
-      action = Spree::Promotion::Actions::CreateItemAdjustments.create(calculator: calculator)
+      action = Spree::Promotion::Actions::CreateItemAdjustments.create!(calculator: calculator)
       promotion.actions << action
     end
 
-    xit "includes line item adjustments in PayPal summary" do
-      add_to_cart(product)
-      # TODO: Is there a better way to find this current order?
-      order = Spree::Order.last
-      order.line_item_adjustments.count.should == 1
+    it "includes line item adjustments in PayPal summary" do
+      expect { add_to_cart(product) }.to change { Spree::Adjustment.count }.by(1)
 
       visit '/cart'
       within("#cart_adjustments") do
-        page.should have_content("10% off")
+        expect(page).to have_content("10% off")
       end
       click_button 'Checkout'
       within("#guest_checkout") do
@@ -173,14 +187,14 @@ describe "PayPal", js: true do
       find("#paypal_button").click
 
       within_transaction_cart do
-        page.should have_content("10% off")
+        expect(page).to have_content("10% off")
       end
 
       login_to_paypal
-      click_button "Pay Now"
+      approve_payment
 
       within("[data-hook=order_details_price_adjustments]") do
-        page.should have_content("10% off")
+        expect(page).to have_content("10% off")
       end
     end
   end
@@ -189,7 +203,7 @@ describe "PayPal", js: true do
   context "will skip $0 items" do
     let!(:product2) { FactoryGirl.create(:product, name: 'iPod') }
 
-    xit do
+    it do
       add_to_cart(product)
       add_to_cart(product2)
 
@@ -208,22 +222,22 @@ describe "PayPal", js: true do
       find("#paypal_button").click
 
       within_transaction_cart do
-        page.should have_content('iPad')
-        page.should_not have_content('iPod')
+        expect(page).to have_content('iPad')
+        expect(page).not_to have_content('iPod')
       end
 
       login_to_paypal
 
       within_transaction_cart do
-        page.should have_content('iPad')
-        page.should_not have_content('iPod')
+        expect(page).to have_content('iPad')
+        expect(page).not_to have_content('iPod')
       end
 
-      click_button "Pay Now"
+      approve_payment
 
       within("#line-items") do
-        page.should have_content('iPad')
-        page.should have_content('iPod')
+        expect(page).to have_content('iPad')
+        expect(page).to have_content('iPod')
       end
     end
   end
@@ -236,11 +250,15 @@ describe "PayPal", js: true do
       calculator.save
     end
 
-    xit do
+    it do
       add_to_cart(product)
       # TODO: Is there a better way to find this current order?
       order = Spree::Order.last
-      order.adjustments.create!(amount: -order.line_items.last.price, label: "FREE iPad ZOMG!")
+      order.all_adjustments.create!(
+        adjustable: order,
+        amount: -order.line_items.last.price,
+        label: "FREE iPad ZOMG!"
+      )
       click_button 'Checkout'
       within("#guest_checkout") do
         fill_in "Email", with: "test@example.com"
@@ -254,10 +272,10 @@ describe "PayPal", js: true do
 
       login_to_paypal
 
-      click_button "Pay Now"
+      approve_payment
 
       within("[data-hook=order_details_adjustments]") do
-        page.should have_content('FREE iPad ZOMG!')
+        expect(page).to have_content('FREE iPad ZOMG!')
       end
     end
   end
@@ -280,7 +298,7 @@ describe "PayPal", js: true do
       # Delivery step doesn't require any action
       click_button "Save and Continue"
       find("#paypal_button").click
-      page.should have_content("PayPal failed. Security header is not valid")
+      expect(page).to have_content("PayPal failed. Security header is not valid")
     end
   end
 
@@ -298,12 +316,12 @@ describe "PayPal", js: true do
         Spree::Zone.first.update_attribute(:default_tax, true)
       end
 
-      xit do
+      it do
         add_to_cart(product3)
         visit '/cart'
 
         within("#cart_adjustments") do
-          page.should have_content("#{tax_string} (Included in Price)")
+          expect(page).to have_content("#{tax_string} (Included in Price)")
         end
 
         click_button 'Checkout'
@@ -315,12 +333,12 @@ describe "PayPal", js: true do
 
         within_transaction_cart do
           # included taxes should not go on paypal
-          page.should_not have_content(tax_string)
+          expect(page).not_to have_content(tax_string)
         end
 
         login_to_paypal
-        click_button "Pay Now"
-        page.should have_content("Your order has been processed successfully")
+        approve_payment
+        expect(page).to have_content("Your order has been processed successfully")
       end
     end
 
@@ -346,8 +364,8 @@ describe "PayPal", js: true do
         find("#paypal_button").click
         switch_to_paypal_login
         login_to_paypal
-        click_button("Pay Now")
-        page.should have_content("Your order has been processed successfully")
+        approve_payment
+        expect(page).to have_content("Your order has been processed successfully")
 
         visit '/admin'
         click_link Spree::Order.last.number
@@ -356,42 +374,42 @@ describe "PayPal", js: true do
         click_link "Refund"
       end
 
-      xit "can refund payments fully" do
+      it "can refund payments fully" do
         click_button "Refund"
-        page.should have_content("PayPal refund successful")
+        expect(page).to have_content("PayPal refund successful")
 
         payment = Spree::Payment.last
         paypal_checkout = payment.source.source
-        paypal_checkout.refund_transaction_id.should_not be_blank
-        paypal_checkout.refunded_at.should_not be_blank
-        paypal_checkout.state.should eql("refunded")
-        paypal_checkout.refund_type.should eql("Full")
+        expect(paypal_checkout.refund_transaction_id).not_to be_blank
+        expect(paypal_checkout.refunded_at).not_to be_blank
+        expect(paypal_checkout.state).to eq("refunded")
+        expect(paypal_checkout.refund_type).to eq("Full")
 
         # regression test for #82
         within("table") do
-          page.should have_content(payment.display_amount.to_html)
+          expect(page).to have_content(payment.display_amount.to_html)
         end
       end
 
-      xit "can refund payments partially" do
+      it "can refund payments partially" do
         payment = Spree::Payment.last
         # Take a dollar off, which should cause refund type to be...
         fill_in "Amount", with: payment.amount - 1
         click_button "Refund"
-        page.should have_content("PayPal refund successful")
+        expect(page).to have_content("PayPal refund successful")
 
         source = payment.source
-        source.refund_transaction_id.should_not be_blank
-        source.refunded_at.should_not be_blank
-        source.state.should eql("refunded")
+        expect(source.refund_transaction_id).not_to be_blank
+        expect(source.refunded_at).not_to be_blank
+        expect(source.state).to eq("refunded")
         # ... a partial refund
-        source.refund_type.should eql("Partial")
+        expect(source.refund_type).to eq("Partial")
       end
 
-      xit "errors when given an invalid refund amount" do
+      it "errors when given an invalid refund amount" do
         fill_in "Amount", with: "lol"
         click_button "Refund"
-        page.should have_content("PayPal refund unsuccessful (The partial refund amount is not valid)")
+        expect(page).to have_content("PayPal refund unsuccessful (The partial refund amount is not valid)")
       end
     end
   end
