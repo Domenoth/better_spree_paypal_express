@@ -1,8 +1,6 @@
-# Spree PayPal Express
+# Solidus PayPal Express
 
-[![Build Status](https://travis-ci.org/spree-contrib/better_spree_paypal_express.svg?branch=master)](https://travis-ci.org/spree-contrib/better_spree_paypal_express)
-
-This is the official Paypal Express extension for Spree.
+This is a Paypal Express extension for Solidus.
 
 Behind-the-scenes, this extension uses [PayPal's Merchant Ruby SDK](https://github.com/paypal/merchant-sdk-ruby).
 
@@ -10,11 +8,11 @@ Behind-the-scenes, this extension uses [PayPal's Merchant Ruby SDK](https://gith
 
 1. Add this extension to your Gemfile with this line:
 ```ruby
-gem 'spree_paypal_express', github: 'spree-contrib/better_spree_paypal_express', branch: 'X-X-stable'
+gem 'solidus_paypal_express', github: 'Domenoth/solidus_paypal_express', branch: 'solidus-X-X-stable'
 ```
 
-The `branch` option is important: it must match the version of Spree you're using.
-For example, use `3-0-stable` if you're using Spree `3-0-stable` or any `3.0.x` version.
+The `branch` option is important: it must match the version of Solidus you're using.
+For example, use `solidus-1-1-stable` if you're using Solidus `v1.1` or any `1.1.x` version.
 
 2. Install the gem using Bundler:
 
@@ -22,7 +20,7 @@ For example, use `3-0-stable` if you're using Spree `3-0-stable` or any `3.0.x` 
 
 3. Copy & run migrations
 
-        bundle exec rails g spree_paypal_express:install
+        bundle exec rails g solidus_paypal_express:install
 
 4. Restart your server
 
@@ -36,9 +34,9 @@ Go to [PayPal's Developer Website](https://developer.paypal.com/), sign in with 
 
 You will also need a "Personal" account to test the transactions on your site. Create this in the same way, finding the account information under "Profile" as well. You may need to set a password in order to be able to log in to PayPal's sandbox for this user.
 
-#### Spree Setup
+#### Solidus Setup
 
-In Spree, go to the admin backend, click "Configuration" and then "Payment Methods" and create a new payment method. Select "Spree::Gateway::PayPalExpress" as the provider, and click "Create". Enter the email address, password and signature from the "API Credentials" tab for the **Business** account on PayPal.
+In Solidus, go to the admin backend, click "Configuration" and then "Payment Methods" and create a new payment method. Select "Spree::Gateway::PayPalExpress" as the provider, and click "Create". Enter the email address, password and signature from the "API Credentials" tab for the **Business** account on PayPal.
 
 ### Production setup
 
@@ -48,7 +46,7 @@ Sign in to PayPal, then click "Profile" and then (under "Account Information" on
 
 If you are unable to find it, then follow [PayPal's own documentation](https://developer.paypal.com/webapps/developer/docs/classic/api/apiCredentials/).
 
-#### Spree Setup
+#### Solidus Setup
 
 Same as sandbox setup, but change "Server" from "sandbox" to "live".
 
@@ -56,7 +54,7 @@ Same as sandbox setup, but change "Server" from "sandbox" to "live".
 
 The PayPal Express Checkout has [no less than 4.5 billion configuration options](https://github.com/paypal/merchant-sdk-ruby/blob/1d65e598d2f9f200f85c6b3338d4293dbed576d8/lib/paypal-sdk/merchant/data_types.rb#L830-L959).
 
-This Spree extension supports *some* of those. If your favourite is not here, then please submit an issue about it, or better still a patch to add it in.
+This Solidus extension supports *some* of those. If your favourite is not here, then please submit an issue about it, or better still a patch to add it in.
 
 ### Solution Type
 
@@ -131,5 +129,5 @@ Starting point:
 Copyright (c) 2013-2015 Spree Commerce and contributors, released under the [New BSD License][3]
 
 [1]: http://www.fsf.org/licensing/essays/free-sw.html
-[2]: https://github.com/spree/better_spree_paypal_express/issues
-[3]: https://github.com/spree/better_spree_paypal_express/tree/master/LICENSE.md
+[2]: https://github.com/Domenoth/solidus_paypal_express/issues
+[3]: https://github.com/Domenoth/solidus_paypal_express/tree/master/LICENSE.md
